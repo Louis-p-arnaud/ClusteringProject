@@ -46,6 +46,8 @@ with tab1:
         df = df_hist
     if descriptor=="HOG":
         df = df_hog
+
+    # Nb de clusters
     num_clusters = df['cluster'].max() + 1
     selected_cluster =  st.sidebar.selectbox('Sélectionner un Cluster', range(int(num_clusters)))
     # Filtrer les données en fonction du cluster sélectionné
