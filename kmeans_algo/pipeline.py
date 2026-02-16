@@ -1,39 +1,83 @@
 from sklearn.preprocessing import StandardScaler
 import os
 import pandas as pd
-from sklearn import datasets
 import numpy as np
+import cv2
+from pathlib import Path
+import io
 
 from features import *
 from clustering import *
 from utils import *
-from constant import PATH_OUTPUT, MODEL_CLUSTERING
+from constant import PATH_OUTPUT, MODEL_CLUSTERING, PATH_DATASET
 
+
+def load_images_from_dataset(dataset_path):
+    """
+    Charge les images depuis le dossier dataset SANS utiliser les noms des dossiers (clustering non supervisé).
+    Input : dataset_path (str) : chemin vers le dossier dataset
+    Output : images (list), labels_true (np.array optional pour évaluation)
+    """
+    images = []
+    labels_true = []  # Gardé pour évaluation POST-clustering uniquement
+    category_names = []
+    
+    # Parcourir les dossiers du dataset
+    dataset_dir = Path(dataset_path)
+    label = 0
+    
+    for category_folder in sorted(dataset_dir.iterdir()):
+        if category_folder.is_dir():
+            category_name = category_folder.name
+            category_names.append(category_name)
+            
+            # Charger toutes les images du dossier
+            for img_file in category_folder.glob("*"):
+                if img_file.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
+                    try:
+                        # Lire le fichier en bytes et décoder avec OpenCV
+                        with open(img_file, 'rb') as f:
+                            img_bytes = np.frombuffer(f.read(), np.uint8)
+                        img = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
+                        
+                        if img is not None:
+                            # Redimensionner à 64x64 pour cohérence
+                            img = cv2.resize(img, (64, 64))
+                            images.append(img)
+                            # Labels gardés seulement pour évaluation POST clustering
+                            labels_true.append(label)
+                    except Exception as e:
+                        print(f"Erreur lors du chargement de {img_file}: {e}")
+            
+            label += 1
+    
+    return np.array(images), np.array(labels_true), category_names
 
 
 def pipeline():
    
-    digits = datasets.load_digits()
-
-
-    labels_true =digits.target
-    images = digits.images
+    print("\n\n ##### Chargement du dataset ######")
+    images, labels_true, category_names = load_images_from_dataset(PATH_DATASET)
+    
+    print(f"- {len(images)} images chargées")
+    print(f"- {len(category_names)} dossiers trouvés (pas utilisés pour le clustering non supervisé)")
    
     print("\n\n ##### Extraction de Features ######")
-    print("- calcul features hog...")
+    print("- calcul features HOG...")
     descriptors_hog = compute_hog_descriptors(images)
     print("- calcul features Histogram...")
-    descriptors_hist = compute_gray_histograms(images)
+    descriptors_hist = compute_color_histograms(images)
 
 
-    print("\n\n ##### Clustering ######")
-    number_cluster = 10
-    kmeans_hog = KMeans(n_clusters=number_cluster)
-    kmeans_hist = KMeans(n_clusters=number_cluster)
+    print("\n\n ##### Clustering (NON SUPERVISÉ) ######")
+    number_cluster = 20
+    print(f"Nombre de clusters: {number_cluster}")
+    kmeans_hog = KMeans(n_clusters=number_cluster, random_state=42)
+    kmeans_hist = KMeans(n_clusters=number_cluster, random_state=42)
     
-    print("- calcul kmeans avec features HOG ...")
+    print("- calcul kmeans avec features HOG (sans supervision) ...")
     kmeans_hog.fit(np.array(descriptors_hog))
-    print("- calcul kmeans avec features Histogram...")
+    print("- calcul kmeans avec features Histogram (sans supervision)...")
     kmeans_hist.fit(np.array(descriptors_hist))
 
 

@@ -25,9 +25,9 @@ def plot_metric(df_metric):
 
         
 # Chargement des données du clustering
-df_hist = pd.read_excel("output/save_clustering_hist_kmeans.xlsx")
-df_hog = pd.read_excel("output/save_clustering_hog_kmeans.xlsx")
-df_metric = pd.read_excel("output/save_metric.xlsx")
+df_hist = pd.read_excel("kmeans_algo/output/save_clustering_hist_kmeans.xlsx")
+df_hog = pd.read_excel("kmeans_algo/output/save_clustering_hog_kmeans.xlsx")
+df_metric = pd.read_excel("kmeans_algo/output/save_metric.xlsx")
 
 if 'Unnamed: 0' in df_metric.columns:
     df_metric.drop(columns="Unnamed: 0", inplace=True)
@@ -46,8 +46,8 @@ with tab1:
         df = df_hist
     if descriptor=="HOG":
         df = df_hog
-    # Ajouter un sélecteur pour les clusters
-    selected_cluster =  st.sidebar.selectbox('Sélectionner un Cluster', range(10))
+    num_clusters = df['cluster'].max() + 1
+    selected_cluster =  st.sidebar.selectbox('Sélectionner un Cluster', range(int(num_clusters)))
     # Filtrer les données en fonction du cluster sélectionné
     cluster_indices = df[df.cluster==selected_cluster].index    
     st.write(f"###  Analyse du descripteur {descriptor}" )
