@@ -6,8 +6,8 @@ import cv2
 from pathlib import Path
 import io
 
-from features import *
-from clustering import *
+from Algos.kmeans_algo.clustering import KMeans, show_metric
+from Descriptors.features import compute_hog_descriptors, compute_color_histograms
 from utils import *
 from constant import PATH_OUTPUT, MODEL_CLUSTERING, PATH_DATASET
 
