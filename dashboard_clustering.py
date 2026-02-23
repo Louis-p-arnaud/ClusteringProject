@@ -31,6 +31,7 @@ def plot_metric(df_metric):
 # Chargement des données du clustering
 df_hist = pd.read_excel(os.path.join(PATH_OUTPUT, "save_clustering_hist_kmeans.xlsx"))
 df_hog = pd.read_excel(os.path.join(PATH_OUTPUT,"save_clustering_hog_kmeans.xlsx"))
+df_resnet = pd.read_excel(os.path.join(PATH_OUTPUT,"save_clustering_resnet_kmeans.xlsx"))
 df_metric = pd.read_excel(os.path.join(PATH_OUTPUT,"save_metric.xlsx"))
 
 if 'Unnamed: 0' in df_metric.columns:
@@ -45,11 +46,13 @@ with tab1:
     st.write('## Résultat de Clustering des données DIGITS')
     st.sidebar.write("####  Veuillez sélectionner les clusters à analyser" )
     # Sélection des descripteurs
-    descriptor =  st.sidebar.selectbox('Sélectionner un descripteur', ["HISTOGRAM","HOG"])
+    descriptor =  st.sidebar.selectbox('Sélectionner un descripteur', ["HISTOGRAM","HOG","RESNET"])
     if descriptor=="HISTOGRAM":
         df = df_hist
     if descriptor=="HOG":
         df = df_hog
+    if descriptor=="RESNET":
+        df = df_resnet
 
     # Nb de clusters
     num_clusters = df['cluster'].max() + 1

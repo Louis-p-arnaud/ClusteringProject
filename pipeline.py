@@ -7,6 +7,7 @@ from pathlib import Path
 import io
 
 from Algos.kmeans_algo.clustering import KMeans, show_metric
+from Descriptors.ResNet50 import compute_resnet_descriptors, prepare_for_clustering
 from Descriptors.features import compute_hog_descriptors, compute_color_histograms
 from utils import *
 from constant import PATH_OUTPUT, MODEL_CLUSTERING, PATH_DATASET
@@ -67,6 +68,9 @@ def pipeline():
     descriptors_hog = compute_hog_descriptors(images)
     print("- calcul features Histogram...")
     descriptors_hist = compute_color_histograms(images)
+    print("- calcul features ResNet50...")
+    descriptors_resnet = compute_resnet_descriptors(images)
+    #descriptors_resnet = prepare_for_clustering(descriptors_resnet)
 
 
     print("\n\n ##### Clustering (NON SUPERVISÉ) ######")
@@ -74,35 +78,43 @@ def pipeline():
     print(f"Nombre de clusters: {number_cluster}")
     kmeans_hog = KMeans(n_clusters=number_cluster, random_state=42)
     kmeans_hist = KMeans(n_clusters=number_cluster, random_state=42)
+    kmeans_resnet = KMeans(n_clusters=number_cluster, random_state=42)
     
     print("- calcul kmeans avec features HOG (sans supervision) ...")
     kmeans_hog.fit(np.array(descriptors_hog))
     print("- calcul kmeans avec features Histogram (sans supervision)...")
     kmeans_hist.fit(np.array(descriptors_hist))
+    print("- calcul kmeans avec descriptors de resnet50...")
+    kmeans_resnet.fit(np.array(descriptors_resnet))
 
 
     print("\n\n ##### Résultat ######")
     metric_hist = show_metric(labels_true, kmeans_hist.labels_, descriptors_hist, bool_show=True, name_descriptor="HISTOGRAM", bool_return=True)
     metric_hog = show_metric(labels_true, kmeans_hog.labels_, descriptors_hog,bool_show=True, name_descriptor="HOG", bool_return=True)
+    metric_resnet = show_metric(labels_true, kmeans_resnet.labels_, descriptors_resnet,bool_show=True, name_descriptor="RESNET", bool_return=True)
+
 
 
     print("- export des données vers le dashboard")
     # conversion des données vers le format du dashboard
-    list_dict = [metric_hist,metric_hog]
+    list_dict = [metric_hist,metric_hog,metric_resnet]
     df_metric = pd.DataFrame(list_dict)
     
     # Normalisation des données
     scaler = StandardScaler()
     descriptors_hist_norm = scaler.fit_transform(descriptors_hist)
     descriptors_hog_norm = scaler.fit_transform(descriptors_hog)
+    descriptors_resnet_norm = scaler.fit_transform(descriptors_resnet)
 
     #conversion vers un format 3D pour la visualisation
     x_3d_hist = conversion_3d(descriptors_hist_norm)
     x_3d_hog = conversion_3d(descriptors_hog_norm)
+    x_3d_resnet = conversion_3d(descriptors_resnet_norm)
 
     # création des dataframe pour la sauvegarde des données pour la visualisation
     df_hist = create_df_to_export(x_3d_hist, labels_true, kmeans_hist.labels_)
     df_hog = create_df_to_export(x_3d_hog, labels_true, kmeans_hog.labels_)
+    df_resnet = create_df_to_export(x_3d_resnet, labels_true, kmeans_resnet.labels_)
 
     # Vérifie si le dossier existe déjà
     if not os.path.exists(PATH_OUTPUT):
@@ -112,6 +124,7 @@ def pipeline():
     # sauvegarde des données
     df_hist.to_excel(PATH_OUTPUT+"/save_clustering_hist_kmeans.xlsx")
     df_hog.to_excel(PATH_OUTPUT+"/save_clustering_hog_kmeans.xlsx")
+    df_resnet.to_excel(PATH_OUTPUT + "/save_clustering_resnet_kmeans.xlsx")
     df_metric.to_excel(PATH_OUTPUT+"/save_metric.xlsx")
     print("Fin. \n\n Pour avoir la visualisation dashboard, veuillez lancer la commande : streamlit run dashboard_clustering.py")
 
