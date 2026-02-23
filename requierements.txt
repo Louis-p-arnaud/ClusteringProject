@@ -9,3 +9,5 @@ tensorflow
 matplotlib
 openpyxl
 torchvision
+torch
+transformers
