@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
+from PIL import Image
 
 from constant import PATH_OUTPUT
 
@@ -27,11 +28,22 @@ def plot_metric(df_metric):
                   color='descriptor')
     st.plotly_chart(fig1)
 
+
+def load_excel_if_exists(file_path):
+    if os.path.exists(file_path):
+        return pd.read_excel(file_path)
+    return None
+
         
 # Chargement des données du clustering
-df_hist = pd.read_excel(os.path.join(PATH_OUTPUT, "save_clustering_hist_kmeans.xlsx"))
-df_hog = pd.read_excel(os.path.join(PATH_OUTPUT,"save_clustering_hog_kmeans.xlsx"))
-df_metric = pd.read_excel(os.path.join(PATH_OUTPUT,"save_metric.xlsx"))
+df_hist = load_excel_if_exists(os.path.join(PATH_OUTPUT, "save_clustering_hist_kmeans.xlsx"))
+df_hog = load_excel_if_exists(os.path.join(PATH_OUTPUT, "save_clustering_hog_kmeans.xlsx"))
+df_clip = load_excel_if_exists(os.path.join(PATH_OUTPUT, "save_clustering_clip_kmeans.xlsx"))
+df_metric = load_excel_if_exists(os.path.join(PATH_OUTPUT, "save_metric.xlsx"))
+
+if df_metric is None:
+    st.error("Fichier métriques introuvable. Relance `pipeline.py` pour générer les exports.")
+    st.stop()
 
 if 'Unnamed: 0' in df_metric.columns:
     df_metric.drop(columns="Unnamed: 0", inplace=True)
@@ -42,14 +54,28 @@ tab1, tab2 = st.tabs(["Analyse par descripteur", "Analyse global" ])
 # Onglet numéro 1
 with tab1:
 
-    st.write('## Résultat de Clustering des données DIGITS')
+    st.write('## Résultat de Clustering des données de snacks')
     st.sidebar.write("####  Veuillez sélectionner les clusters à analyser" )
     # Sélection des descripteurs
-    descriptor =  st.sidebar.selectbox('Sélectionner un descripteur', ["HISTOGRAM","HOG"])
+    available_descriptors = []
+    if df_hist is not None:
+        available_descriptors.append("HISTOGRAM")
+    if df_hog is not None:
+        available_descriptors.append("HOG")
+    if df_clip is not None:
+        available_descriptors.append("CLIP")
+
+    if len(available_descriptors) == 0:
+        st.error("Aucun fichier clustering trouvé. Relance `pipeline.py`.")
+        st.stop()
+
+    descriptor = st.sidebar.selectbox('Sélectionner un descripteur', available_descriptors)
     if descriptor=="HISTOGRAM":
         df = df_hist
     if descriptor=="HOG":
         df = df_hog
+    if descriptor=="CLIP":
+        df = df_clip
 
     # Nb de clusters
     num_clusters = df['cluster'].max() + 1
@@ -64,6 +90,27 @@ with tab1:
     # Création d'un graph 3D des clusters
     fig = colorize_cluster(df, selected_cluster)
     st.plotly_chart(fig)
+
+    st.write(f"#### Images du cluster {selected_cluster}")
+    if 'image_path' in filtered_data.columns:
+        image_paths = filtered_data['image_path'].dropna().tolist()
+        if len(image_paths) == 0:
+            st.info("Aucune image trouvée pour ce cluster.")
+        else:
+            num_cols = 5
+            cols = st.columns(num_cols)
+            for i, img_path in enumerate(image_paths):
+                col = cols[i % num_cols]
+                img_path = os.path.normpath(str(img_path))
+                if os.path.exists(img_path):
+                    with col:
+                        img = Image.open(img_path)
+                        st.image(img, caption=os.path.basename(img_path), use_column_width=True)
+                else:
+                    with col:
+                        st.warning(f"Image introuvable: {os.path.basename(img_path)}")
+    else:
+        st.warning("La colonne 'image_path' est absente. Relance `pipeline.py` pour régénérer les fichiers exportés.")
 
 # Onglet numéro 2
 with tab2:
