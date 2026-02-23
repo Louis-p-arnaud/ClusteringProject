@@ -1,8 +1,12 @@
+import os
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
+
+from constant import PATH_OUTPUT
 
 
 @st.cache_data
@@ -25,9 +29,9 @@ def plot_metric(df_metric):
 
         
 # Chargement des données du clustering
-df_hist = pd.read_excel("kmeans_algo/output/save_clustering_hist_kmeans.xlsx")
-df_hog = pd.read_excel("kmeans_algo/output/save_clustering_hog_kmeans.xlsx")
-df_metric = pd.read_excel("kmeans_algo/output/save_metric.xlsx")
+df_hist = pd.read_excel(os.path.join(PATH_OUTPUT, "save_clustering_hist_kmeans.xlsx"))
+df_hog = pd.read_excel(os.path.join(PATH_OUTPUT,"save_clustering_hog_kmeans.xlsx"))
+df_metric = pd.read_excel(os.path.join(PATH_OUTPUT,"save_metric.xlsx"))
 
 if 'Unnamed: 0' in df_metric.columns:
     df_metric.drop(columns="Unnamed: 0", inplace=True)
