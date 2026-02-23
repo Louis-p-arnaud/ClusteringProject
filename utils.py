@@ -24,17 +24,19 @@ def conversion_3d(X, n_components=3,perplexity=50,random_state=42, early_exagger
     return X_3d
 
 
-def create_df_to_export(data_3d, l_true_label,l_cluster):
-    """
-    Création d'un DataFrame pour stocker les données et les labels
-    Input : data_3d (array-like) : données converties en 3D
-            l_true_label (list) : liste des labels vrais
-            l_cluster (list) : liste des labels de cluster
-            l_path_img (list) : liste des chemins des images
-    Output : df (DataFrame) : DataFrame contenant les données et les labels
-    """
-    df = pd.DataFrame(data_3d, columns=['x', 'y', 'z'])
-    df['label'] = l_true_label
-    df['cluster'] = l_cluster
-    
-    return df
+def create_df_to_export(data_3d, l_true_label, l_cluster, l_path_img=None):
+        """
+        Création d'un DataFrame pour stocker les données et les labels
+        Input : data_3d (array-like) : données converties en 3D
+                        l_true_label (list) : liste des labels vrais
+                        l_cluster (list) : liste des labels de cluster
+                        l_path_img (list, optional) : liste des chemins des images
+        Output : df (DataFrame) : DataFrame contenant les données et les labels
+        """
+        df = pd.DataFrame(data_3d, columns=['x', 'y', 'z'])
+        df['label'] = l_true_label
+        df['cluster'] = l_cluster
+        if l_path_img is not None:
+                df['image_path'] = l_path_img
+
+        return df
