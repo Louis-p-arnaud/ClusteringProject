@@ -34,12 +34,13 @@ def load_excel_if_exists(file_path):
         return pd.read_excel(file_path)
     return None
 
-        
+
 # Chargement des données du clustering
-df_hist = load_excel_if_exists(os.path.join(PATH_OUTPUT, "save_clustering_hist_kmeans.xlsx"))
-df_hog = load_excel_if_exists(os.path.join(PATH_OUTPUT, "save_clustering_hog_kmeans.xlsx"))
+df_hist = pd.read_excel(os.path.join(PATH_OUTPUT, "save_clustering_hist_kmeans.xlsx"))
+df_hog = pd.read_excel(os.path.join(PATH_OUTPUT,"save_clustering_hog_kmeans.xlsx"))
+df_resnet = pd.read_excel(os.path.join(PATH_OUTPUT,"save_clustering_resnet_kmeans.xlsx"))
+df_metric = pd.read_excel(os.path.join(PATH_OUTPUT,"save_metric.xlsx"))
 df_clip = load_excel_if_exists(os.path.join(PATH_OUTPUT, "save_clustering_clip_kmeans.xlsx"))
-df_metric = load_excel_if_exists(os.path.join(PATH_OUTPUT, "save_metric.xlsx"))
 
 if df_metric is None:
     st.error("Fichier métriques introuvable. Relance `pipeline.py` pour générer les exports.")
@@ -64,6 +65,9 @@ with tab1:
         available_descriptors.append("HOG")
     if df_clip is not None:
         available_descriptors.append("CLIP")
+    if df_resnet is not None:
+        available_descriptors.append("RESNET")
+
 
     if len(available_descriptors) == 0:
         st.error("Aucun fichier clustering trouvé. Relance `pipeline.py`.")
@@ -76,6 +80,8 @@ with tab1:
         df = df_hog
     if descriptor=="CLIP":
         df = df_clip
+    if descriptor=="RESNET":
+        df = df_resnet
 
     # Nb de clusters
     num_clusters = df['cluster'].max() + 1

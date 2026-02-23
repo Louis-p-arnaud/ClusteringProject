@@ -8,5 +8,6 @@ streamlit==1.31.1
 tensorflow
 matplotlib
 openpyxl
+torchvision
 torch
 transformers
