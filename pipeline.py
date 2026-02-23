@@ -1,4 +1,6 @@
 from sklearn.preprocessing import StandardScaler
+from Descriptors.vit_descriptor import ViTDescriptor # Ton nouveau fichier
+from sklearn.cluster import SpectralClustering
 import os
 import pandas as pd
 import numpy as np
@@ -57,66 +59,72 @@ def load_images_from_dataset(dataset_path):
 
 
 def pipeline():
-   
     print("\n\n ##### Chargement du dataset ######")
     images, labels_true, category_names, image_paths = load_images_from_dataset(PATH_DATASET)
     
-    print(f"- {len(images)} images chargées")
-    print(f"- {len(category_names)} dossiers trouvés (pas utilisés pour le clustering non supervisé)")
-   
     print("\n\n ##### Extraction de Features ######")
     print("- calcul features HOG...")
     descriptors_hog = compute_hog_descriptors(images)
     print("- calcul features Histogram...")
     descriptors_hist = compute_color_histograms(images)
-
+    
+    # --- AJOUT DU DESCRIPTEUR ViT ---
+    print("- calcul features Vision Transformer (ViT)...")
+    vit_extractor = ViTDescriptor()
+    descriptors_vit = []
+    for path in image_paths:
+        feat = vit_extractor.get_features(path)
+        descriptors_vit.append(feat)
+    descriptors_vit = np.array(descriptors_vit)
 
     print("\n\n ##### Clustering (NON SUPERVISÉ) ######")
-    number_cluster = 20
-    print(f"Nombre de clusters: {number_cluster}")
+    number_cluster = 20 # Objectif fixé par le sujet [cite: 6]
+    
+    # Modèles existants
     kmeans_hog = KMeans(n_clusters=number_cluster, random_state=42)
     kmeans_hist = KMeans(n_clusters=number_cluster, random_state=42)
     
-    print("- calcul kmeans avec features HOG (sans supervision) ...")
-    kmeans_hog.fit(np.array(descriptors_hog))
-    print("- calcul kmeans avec features Histogram (sans supervision)...")
-    kmeans_hist.fit(np.array(descriptors_hist))
+    # --- AJOUT DU SPECTRAL CLUSTERING ---
+    print("- calcul Spectral Clustering avec features ViT...")
+    # On utilise 'nearest_neighbors' pour la connectivité du graphe
+    spectral_model = SpectralClustering(n_clusters=number_cluster, affinity='nearest_neighbors', assign_labels='kmeans', random_state=42)
+    spectral_labels = spectral_model.fit_predict(descriptors_vit)
 
+    print("- calcul kmeans classiques...")
+    kmeans_hog.fit(np.array(descriptors_hog))
+    kmeans_hist.fit(np.array(descriptors_hist))
 
     print("\n\n ##### Résultat ######")
     metric_hist = show_metric(labels_true, kmeans_hist.labels_, descriptors_hist, bool_show=True, name_descriptor="HISTOGRAM", bool_return=True)
-    metric_hog = show_metric(labels_true, kmeans_hog.labels_, descriptors_hog,bool_show=True, name_descriptor="HOG", bool_return=True)
-
+    metric_hog = show_metric(labels_true, kmeans_hog.labels_, descriptors_hog, bool_show=True, name_descriptor="HOG", bool_return=True)
+    
+    # Métrique pour ton nouveau modèle
+    metric_vit = show_metric(labels_true, spectral_labels, descriptors_vit, bool_show=True, name_descriptor="ViT_SPECTRAL", bool_return=True)
 
     print("- export des données vers le dashboard")
-    # conversion des données vers le format du dashboard
-    list_dict = [metric_hist,metric_hog]
-    df_metric = pd.DataFrame(list_dict)
+    df_metric = pd.DataFrame([metric_hist, metric_hog, metric_vit])
     
-    # Normalisation des données
+    # Normalisation et conversion 3D pour la visualisation 
     scaler = StandardScaler()
-    descriptors_hist_norm = scaler.fit_transform(descriptors_hist)
-    descriptors_hog_norm = scaler.fit_transform(descriptors_hog)
+    x_3d_hist = conversion_3d(scaler.fit_transform(descriptors_hist))
+    x_3d_hog = conversion_3d(scaler.fit_transform(descriptors_hog))
+    x_3d_vit = conversion_3d(scaler.fit_transform(descriptors_vit))
 
-    #conversion vers un format 3D pour la visualisation
-    x_3d_hist = conversion_3d(descriptors_hist_norm)
-    x_3d_hog = conversion_3d(descriptors_hog_norm)
-
-    # création des dataframe pour la sauvegarde des données pour la visualisation
+    # Création des DataFrames d'export
     df_hist = create_df_to_export(x_3d_hist, labels_true, kmeans_hist.labels_, image_paths)
     df_hog = create_df_to_export(x_3d_hog, labels_true, kmeans_hog.labels_, image_paths)
+    df_vit = create_df_to_export(x_3d_vit, labels_true, spectral_labels, image_paths)
 
-    # Vérifie si le dossier existe déjà
     if not os.path.exists(PATH_OUTPUT):
-        # Crée le dossier
         os.makedirs(PATH_OUTPUT)
 
-    # sauvegarde des données
+    # Sauvegarde des fichiers Excel pour le Dashboard
     df_hist.to_excel(PATH_OUTPUT+"/save_clustering_hist_kmeans.xlsx")
     df_hog.to_excel(PATH_OUTPUT+"/save_clustering_hog_kmeans.xlsx")
+    df_vit.to_excel(PATH_OUTPUT+"/save_clustering_vit_spectral.xlsx")
     df_metric.to_excel(PATH_OUTPUT+"/save_metric.xlsx")
-    print("Fin. \n\n Pour avoir la visualisation dashboard, veuillez lancer la commande : streamlit run dashboard_clustering.py")
-
+    
+    print("Fin. Pipeline exécutée avec succès.")
 
 if __name__ == "__main__":
     pipeline()
