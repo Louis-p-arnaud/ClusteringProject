@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
+from PIL import Image
 
 from constant import PATH_OUTPUT
 
@@ -64,6 +65,27 @@ with tab1:
     # Création d'un graph 3D des clusters
     fig = colorize_cluster(df, selected_cluster)
     st.plotly_chart(fig)
+
+    st.write(f"#### Images du cluster {selected_cluster}")
+    if 'image_path' in filtered_data.columns:
+        image_paths = filtered_data['image_path'].dropna().tolist()
+        if len(image_paths) == 0:
+            st.info("Aucune image trouvée pour ce cluster.")
+        else:
+            num_cols = 5
+            cols = st.columns(num_cols)
+            for i, img_path in enumerate(image_paths):
+                col = cols[i % num_cols]
+                img_path = os.path.normpath(str(img_path))
+                if os.path.exists(img_path):
+                    with col:
+                        img = Image.open(img_path)
+                        st.image(img, caption=os.path.basename(img_path), use_column_width=True)
+                else:
+                    with col:
+                        st.warning(f"Image introuvable: {os.path.basename(img_path)}")
+    else:
+        st.warning("La colonne 'image_path' est absente. Relance `pipeline.py` pour régénérer les fichiers exportés.")
 
 # Onglet numéro 2
 with tab2:

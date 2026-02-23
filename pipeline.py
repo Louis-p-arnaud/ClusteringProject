@@ -21,6 +21,7 @@ def load_images_from_dataset(dataset_path):
     images = []
     labels_true = []  # Gardé pour évaluation POST-clustering uniquement
     category_names = []
+    image_paths = []
     
     # Parcourir les dossiers du dataset
     dataset_dir = Path(dataset_path)
@@ -32,7 +33,7 @@ def load_images_from_dataset(dataset_path):
             category_names.append(category_name)
             
             # Charger toutes les images du dossier
-            for img_file in category_folder.glob("*"):
+            for img_file in sorted(category_folder.glob("*")):
                 if img_file.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
                     try:
                         # Lire le fichier en bytes et décoder avec OpenCV
@@ -46,18 +47,19 @@ def load_images_from_dataset(dataset_path):
                             images.append(img)
                             # Labels gardés seulement pour évaluation POST clustering
                             labels_true.append(label)
+                            image_paths.append(str(img_file))
                     except Exception as e:
                         print(f"Erreur lors du chargement de {img_file}: {e}")
             
             label += 1
     
-    return np.array(images), np.array(labels_true), category_names
+    return np.array(images), np.array(labels_true), category_names, image_paths
 
 
 def pipeline():
    
     print("\n\n ##### Chargement du dataset ######")
-    images, labels_true, category_names = load_images_from_dataset(PATH_DATASET)
+    images, labels_true, category_names, image_paths = load_images_from_dataset(PATH_DATASET)
     
     print(f"- {len(images)} images chargées")
     print(f"- {len(category_names)} dossiers trouvés (pas utilisés pour le clustering non supervisé)")
@@ -101,8 +103,8 @@ def pipeline():
     x_3d_hog = conversion_3d(descriptors_hog_norm)
 
     # création des dataframe pour la sauvegarde des données pour la visualisation
-    df_hist = create_df_to_export(x_3d_hist, labels_true, kmeans_hist.labels_)
-    df_hog = create_df_to_export(x_3d_hog, labels_true, kmeans_hog.labels_)
+    df_hist = create_df_to_export(x_3d_hist, labels_true, kmeans_hist.labels_, image_paths)
+    df_hog = create_df_to_export(x_3d_hog, labels_true, kmeans_hog.labels_, image_paths)
 
     # Vérifie si le dossier existe déjà
     if not os.path.exists(PATH_OUTPUT):
