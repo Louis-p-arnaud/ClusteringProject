@@ -13,7 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from Algos.kmeans_algo.clustering import KMeans, show_metric
 from Descriptors.ResNet50 import compute_resnet_descriptors, prepare_for_clustering
-from Descriptors.features import compute_hog_descriptors, compute_color_histograms, compute_clip_descriptors
+from Descriptors.features import compute_hog_descriptors, compute_color_histograms, compute_clip_descriptors, compute_vit_descriptors
 from utils import *
 from constant import PATH_OUTPUT, MODEL_CLUSTERING, PATH_DATASET
 
@@ -80,6 +80,8 @@ def pipeline():
     #descriptors_resnet = prepare_for_clustering(descriptors_resnet)
     print("- calcul features CLIP...")
     descriptors_clip = compute_clip_descriptors(images)
+    print("- calcul features ViT...")
+    descriptors_vit = compute_vit_descriptors(images)
 
 
     print("\n\n ##### Clustering (NON SUPERVISÉ) ######")
@@ -89,6 +91,7 @@ def pipeline():
     kmeans_hist = KMeans(n_clusters=number_cluster, random_state=42)
     kmeans_resnet = KMeans(n_clusters=number_cluster, random_state=42)
     kmeans_clip = KMeans(n_clusters=number_cluster, random_state=42)
+    kmeans_vit = KMeans(n_clusters=number_cluster, random_state=42)
 
     print("- calcul kmeans avec features HOG (sans supervision) ...")
     kmeans_hog.fit(np.array(descriptors_hog))
@@ -98,6 +101,8 @@ def pipeline():
     kmeans_resnet.fit(np.array(descriptors_resnet))
     print("- calcul kmeans avec features CLIP (sans supervision)...")
     kmeans_clip.fit(np.array(descriptors_clip))
+    print("- calcul kmeans avec features ViT (sans supervision)...")
+    kmeans_vit.fit(np.array(descriptors_vit))
 
 
     print("\n\n ##### Résultat ######")
@@ -106,11 +111,12 @@ def pipeline():
     metric_resnet = show_metric(labels_true, kmeans_resnet.labels_, descriptors_resnet,bool_show=True, name_descriptor="RESNET", bool_return=True)
 
     metric_clip = show_metric(labels_true, kmeans_clip.labels_, descriptors_clip, bool_show=True, name_descriptor="CLIP", bool_return=True)
+    metric_vit = show_metric(labels_true, kmeans_vit.labels_, descriptors_vit, bool_show=True, name_descriptor="VIT", bool_return=True)
 
 
     print("- export des données vers le dashboard")
     # conversion des données vers le format du dashboard
-    list_dict = [metric_hist,metric_hog,metric_resnet,metric_clip]
+    list_dict = [metric_hist, metric_hog, metric_resnet, metric_clip, metric_vit]
     df_metric = pd.DataFrame(list_dict)
     
     # Normalisation des données
@@ -119,18 +125,21 @@ def pipeline():
     descriptors_hog_norm = scaler.fit_transform(descriptors_hog)
     descriptors_resnet_norm = scaler.fit_transform(descriptors_resnet)
     descriptors_clip_norm = scaler.fit_transform(descriptors_clip)
+    descriptors_vit_norm = scaler.fit_transform(descriptors_vit)
 
     #conversion vers un format 3D pour la visualisation
     x_3d_hist = conversion_3d(descriptors_hist_norm)
     x_3d_hog = conversion_3d(descriptors_hog_norm)
     x_3d_resnet = conversion_3d(descriptors_resnet_norm)
     x_3d_clip = conversion_3d(descriptors_clip_norm)
+    x_3d_vit = conversion_3d(descriptors_vit_norm)
 
     # création des dataframe pour la sauvegarde des données pour la visualisation
     df_resnet = create_df_to_export(x_3d_resnet, labels_true, kmeans_resnet.labels_,image_paths)
     df_hist = create_df_to_export(x_3d_hist, labels_true, kmeans_hist.labels_, image_paths)
     df_hog = create_df_to_export(x_3d_hog, labels_true, kmeans_hog.labels_, image_paths)
     df_clip = create_df_to_export(x_3d_clip, labels_true, kmeans_clip.labels_, image_paths)
+    df_vit = create_df_to_export(x_3d_vit, labels_true, kmeans_vit.labels_, image_paths)
 
     # Vérifie si le dossier existe déjà
     if not os.path.exists(PATH_OUTPUT):
@@ -142,6 +151,7 @@ def pipeline():
     df_hog.to_excel(PATH_OUTPUT+"/save_clustering_hog_kmeans.xlsx")
     df_resnet.to_excel(PATH_OUTPUT + "/save_clustering_resnet_kmeans.xlsx")
     df_clip.to_excel(PATH_OUTPUT+"/save_clustering_clip_kmeans.xlsx")
+    df_vit.to_excel(PATH_OUTPUT+"/save_clustering_vit_kmeans.xlsx")
     df_metric.to_excel(PATH_OUTPUT+"/save_metric.xlsx")
     print("Fin. \n\n Pour avoir la visualisation dashboard, veuillez lancer la commande : streamlit run dashboard_clustering.py")
 

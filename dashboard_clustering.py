@@ -37,13 +37,15 @@ def load_excel_if_exists(file_path):
 
 # Sélection de l'algorithme (en haut de la sidebar)
 st.sidebar.write("## Configuration du clustering")
-algorithm = st.sidebar.selectbox('Algorithme de clustering', ["kmeans", "dbscan"])
+algorithm = st.sidebar.selectbox('Algorithme de clustering', ["kmeans", "dbscan", "spectral"])
 
 # Chargement dynamique des données selon l'algorithme
 if algorithm == "kmeans":
     PATH_OUTPUT = os.path.join(PATH_ALGO, "kmeans_algo", "output")
 elif algorithm == "dbscan":
     PATH_OUTPUT = os.path.join(PATH_ALGO, "dbscan_algo", "output")
+elif algorithm == "spectral":
+    PATH_OUTPUT = os.path.join(PATH_ALGO, "spectral_clustering_algo", "output")
 else:
     st.error("Algorithme non reconnu.")
     st.stop()
@@ -52,6 +54,7 @@ df_hist = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_hist_
 df_hog = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_hog_{algorithm}.xlsx"))
 df_resnet = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_resnet_{algorithm}.xlsx"))
 df_clip = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_clip_{algorithm}.xlsx"))
+df_vit = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_vit_{algorithm}.xlsx"))
 df_metric = load_excel_if_exists(os.path.join(PATH_OUTPUT, "save_metric.xlsx"))
 
 if df_metric is None:
@@ -79,6 +82,8 @@ with tab1:
         available_descriptors.append("CLIP")
     if df_resnet is not None:
         available_descriptors.append("RESNET")
+    if df_vit is not None:
+        available_descriptors.append("VIT")
 
 
     if len(available_descriptors) == 0:
@@ -94,6 +99,8 @@ with tab1:
         df = df_clip
     if descriptor=="RESNET":
         df = df_resnet
+    if descriptor=="VIT":
+        df = df_vit
 
     # Nb de clusters
     unique_clusters = sorted(df['cluster'].unique())

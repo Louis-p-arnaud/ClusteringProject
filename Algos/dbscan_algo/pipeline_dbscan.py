@@ -14,7 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from Algos.dbscan_algo.clustering import DBSCAN, show_metric
 from Descriptors.ResNet50 import compute_resnet_descriptors, prepare_for_clustering
-from Descriptors.features import compute_hog_descriptors, compute_color_histograms, compute_clip_descriptors
+from Descriptors.features import compute_hog_descriptors, compute_color_histograms, compute_clip_descriptors, compute_vit_descriptors
 from utils import *
 from constant import PATH_ALGO, MODEL_CLUSTERING, PATH_DATASET
 
@@ -184,12 +184,15 @@ def pipeline():
     descriptors_resnet = compute_resnet_descriptors(images)
     print("- calcul features CLIP...")
     descriptors_clip = compute_clip_descriptors(images)
+    print("- calcul features ViT...")
+    descriptors_vit = compute_vit_descriptors(images)
 
     descriptor_map = {
         "HOG": np.asarray(descriptors_hog),
         "HISTOGRAM": np.asarray(descriptors_hist),
         "RESNET": np.asarray(descriptors_resnet),
         "CLIP": np.asarray(descriptors_clip),
+        "VIT": np.asarray(descriptors_vit),
     }
 
     print("\n\n ##### Clustering DBSCAN (NON SUPERVISÉ) ######")
@@ -257,12 +260,14 @@ def pipeline():
     x_3d_hog = conversion_3d(features_for_viz["HOG"])
     x_3d_resnet = conversion_3d(features_for_viz["RESNET"])
     x_3d_clip = conversion_3d(features_for_viz["CLIP"])
+    x_3d_vit = conversion_3d(features_for_viz["VIT"])
 
     # création des dataframe pour la sauvegarde des données pour la visualisation
     df_hist = create_df_to_export(x_3d_hist, labels_true, labels_by_descriptor["HISTOGRAM"], image_paths)
     df_hog = create_df_to_export(x_3d_hog, labels_true, labels_by_descriptor["HOG"], image_paths)
     df_resnet = create_df_to_export(x_3d_resnet, labels_true, labels_by_descriptor["RESNET"], image_paths)
     df_clip = create_df_to_export(x_3d_clip, labels_true, labels_by_descriptor["CLIP"], image_paths)
+    df_vit = create_df_to_export(x_3d_vit, labels_true, labels_by_descriptor["VIT"], image_paths)
 
     # Chemin de sortie DBSCAN
     PATH_OUTPUT_DBSCAN = os.path.join(PATH_ALGO, "dbscan_algo", "output")
@@ -276,6 +281,7 @@ def pipeline():
     df_hog.to_excel(PATH_OUTPUT_DBSCAN + "/save_clustering_hog_dbscan.xlsx")
     df_resnet.to_excel(PATH_OUTPUT_DBSCAN + "/save_clustering_resnet_dbscan.xlsx")
     df_clip.to_excel(PATH_OUTPUT_DBSCAN + "/save_clustering_clip_dbscan.xlsx")
+    df_vit.to_excel(PATH_OUTPUT_DBSCAN + "/save_clustering_vit_dbscan.xlsx")
     df_metric.to_excel(PATH_OUTPUT_DBSCAN + "/save_metric.xlsx")
     print("Fin. \n\n Pour avoir la visualisation dashboard, veuillez lancer la commande : streamlit run dashboard_clustering.py")
 

@@ -11,3 +11,4 @@ openpyxl
 torchvision
 torch
 transformers
+timm
