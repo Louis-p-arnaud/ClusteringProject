@@ -1,4 +1,5 @@
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
 import os
 import pandas as pd
 import numpy as np
@@ -93,6 +94,43 @@ def pipeline():
     kmeans_clip = KMeans(n_clusters=number_cluster, random_state=42)
     kmeans_vit = KMeans(n_clusters=number_cluster, random_state=42)
 
+    descriptor_map = {
+        "HOG": np.asarray(descriptors_hog),
+        "HISTOGRAM": np.asarray(descriptors_hist),
+        "RESNET": np.asarray(descriptors_resnet),
+        "CLIP": np.asarray(descriptors_clip),
+        "VIT": np.asarray(descriptors_vit),
+    }
+
+    print("- calcul courbe Silhouette Score pour K = [5, 10, 15, 20, 25]...")
+    k_values = [5, 10, 15, 20, 25]
+    silhouette_curve_rows = []
+    for descriptor_name, descriptor_values in descriptor_map.items():
+        descriptor_values = np.asarray(descriptor_values)
+        for k in k_values:
+            kmeans_tmp = KMeans(n_clusters=k, random_state=42)
+            kmeans_tmp.fit(descriptor_values)
+            labels_tmp = kmeans_tmp.labels_
+
+            # Silhouette nécessite au moins 2 clusters valides
+            if len(np.unique(labels_tmp)) < 2:
+                silhouette_k = np.nan
+            else:
+                try:
+                    silhouette_k = float(silhouette_score(descriptor_values, labels_tmp))
+                except Exception:
+                    silhouette_k = np.nan
+
+            silhouette_curve_rows.append(
+                {
+                    "descriptor": descriptor_name,
+                    "k": k,
+                    "silhouette": silhouette_k,
+                }
+            )
+
+    df_silhouette_curve = pd.DataFrame(silhouette_curve_rows)
+
     print("- calcul kmeans avec features HOG (sans supervision) ...")
     kmeans_hog.fit(np.array(descriptors_hog))
     print("- calcul kmeans avec features Histogram (sans supervision)...")
@@ -153,6 +191,7 @@ def pipeline():
     df_clip.to_excel(PATH_OUTPUT+"/save_clustering_clip_kmeans.xlsx")
     df_vit.to_excel(PATH_OUTPUT+"/save_clustering_vit_kmeans.xlsx")
     df_metric.to_excel(PATH_OUTPUT+"/save_metric.xlsx")
+    df_silhouette_curve.to_excel(PATH_OUTPUT+"/save_silhouette_curve_kmeans.xlsx", index=False)
     print("Fin. \n\n Pour avoir la visualisation dashboard, veuillez lancer la commande : streamlit run dashboard_clustering.py")
 
 
