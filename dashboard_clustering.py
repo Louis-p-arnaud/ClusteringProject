@@ -37,7 +37,7 @@ def load_excel_if_exists(file_path):
 
 # Sélection de l'algorithme (en haut de la sidebar)
 st.sidebar.write("## Configuration du clustering")
-algorithm = st.sidebar.selectbox('Algorithme de clustering', ["kmeans", "dbscan", "spectral"])
+algorithm = st.sidebar.selectbox('Algorithme de clustering', ["kmeans", "dbscan", "spectral", 'gmm'])
 
 # Chargement dynamique des données selon l'algorithme
 if algorithm == "kmeans":
@@ -46,6 +46,8 @@ elif algorithm == "dbscan":
     PATH_OUTPUT = os.path.join(PATH_ALGO, "dbscan_algo", "output")
 elif algorithm == "spectral":
     PATH_OUTPUT = os.path.join(PATH_ALGO, "spectral_clustering_algo", "output")
+elif algorithm == "gmm":
+    PATH_OUTPUT = os.path.join(PATH_ALGO, "GMM_algo", "output")
 else:
     st.error("Algorithme non reconnu.")
     st.stop()

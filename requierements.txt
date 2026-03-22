@@ -12,3 +12,4 @@ torchvision
 torch
 transformers
 timm
+Pillow
