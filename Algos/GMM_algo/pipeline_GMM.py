@@ -160,7 +160,8 @@ def pipeline():
     }
 
     print("\n\n ##### Clustering GMM (NON SUPERVISÉ) ######")
-    print("Sélection automatique du nombre de composantes via BIC par descripteur")
+    target_n_components = 20
+    print(f"Nombre de composantes fixé à {target_n_components}")
 
     metrics_list = []
     labels_by_descriptor = {}
@@ -179,18 +180,19 @@ def pipeline():
         X_tensor = torch.FloatTensor(X_cluster)
         n_features = X_tensor.shape[1]
 
-        # 4) Sélection automatique du nombre de composantes via BIC
-        best_n, best_model, bic_scores = select_best_n_components(
-            X_tensor,
-            n_candidates=[2, 3, 4, 5, 6, 8, 10],
+        # 4) Entraînement GMM avec n_components fixé à 20
+        best_n = target_n_components
+        best_model = GaussianMixture(
+            n_components=best_n,
+            n_features=n_features,
             covariance_type="full",
-            n_iter=100,
         )
+        best_model.fit(X_tensor, n_iter=100)
 
-        print(
-            f"BIC scores {descriptor_name}: " +
-            ", ".join([f"k={k}: {v:.1f}" for k, v in bic_scores.items()])
-        )
+        bic_val = float(best_model.bic(X_tensor))
+        bic_scores = {best_n: bic_val}
+
+        print(f"BIC {descriptor_name}: k={best_n}: {bic_val:.1f}")
         print(
             f"Paramètres {descriptor_name}: n_components={best_n}, "
             f"dims={X_cluster.shape[1]} (PCA={pca_dims})"
