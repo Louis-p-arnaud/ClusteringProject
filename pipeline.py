@@ -9,6 +9,7 @@ from pathlib import Path
 import io
 
 from Algos.kmeans_algo.kmeans import KMeans, show_metric
+from Algos.spectral_clustering_algo.spectral_clustering import Spectral
 from Descriptors.features import compute_hog_descriptors, compute_color_histograms
 from utils import *
 from constant import PATH_OUTPUT, MODEL_CLUSTERING, PATH_DATASET
@@ -87,8 +88,9 @@ def pipeline():
     # --- AJOUT DU SPECTRAL CLUSTERING ---
     print("- calcul Spectral Clustering avec features ViT...")
     # On utilise 'nearest_neighbors' pour la connectivité du graphe
-    spectral_model = SpectralClustering(n_clusters=number_cluster, affinity='nearest_neighbors', assign_labels='kmeans', random_state=42)
+    spectral_model = Spectral(n_clusters=number_cluster, affinity='nearest_neighbors', assign_labels='kmeans', random_state=42)
     spectral_labels = spectral_model.fit_predict(descriptors_vit)
+
 
     print("- calcul kmeans classiques...")
     kmeans_hog.fit(np.array(descriptors_hog))
