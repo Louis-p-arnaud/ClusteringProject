@@ -131,6 +131,44 @@ def load_images_from_dataset(dataset_path):
     return np.array(images), np.array(labels_true), category_names, image_paths
 
 
+def fit_gmm_with_fallback(X_tensor, target_n_components=20, n_iter=100):
+    """
+    Entraîne GMM avec fallback pour éviter les erreurs de matrice non définie positive.
+    Priorité:
+    - n_components cible (20)
+    - covariance full puis diag
+    - si échec, réduction progressive de n_components
+    """
+    n_samples, n_features = X_tensor.shape
+
+    n_candidates = [target_n_components, 18, 16, 14, 12, 10, 8, 6, 4, 2]
+    n_candidates = [n for n in n_candidates if n < n_samples]
+    if len(n_candidates) == 0:
+        raise RuntimeError("Aucun n_components valide pour GMM.")
+
+    covariance_candidates = ["full", "diag"]
+    last_error = None
+
+    for covariance_type in covariance_candidates:
+        for n_components in n_candidates:
+            try:
+                model = GaussianMixture(
+                    n_components=n_components,
+                    n_features=n_features,
+                    covariance_type=covariance_type,
+                )
+                model.fit(X_tensor, n_iter=n_iter)
+                bic_val = float(model.bic(X_tensor))
+                return model, n_components, covariance_type, bic_val
+            except Exception as exc:
+                last_error = exc
+                print(
+                    f"  [WARN] Echec GMM (covariance={covariance_type}, n_components={n_components}): {exc}"
+                )
+
+    raise RuntimeError(f"Impossible d'entraîner GMM après fallback. Dernière erreur: {last_error}")
+
+
 def pipeline():
 
     print("\n\n ##### Chargement du dataset ######")
@@ -180,19 +218,15 @@ def pipeline():
         X_tensor = torch.FloatTensor(X_cluster)
         n_features = X_tensor.shape[1]
 
-        # 4) Entraînement GMM avec n_components fixé à 20
-        best_n = target_n_components
-        best_model = GaussianMixture(
-            n_components=best_n,
-            n_features=n_features,
-            covariance_type="full",
+        # 4) Entraînement GMM robuste avec fallback (full -> diag, puis baisse n_components)
+        best_model, best_n, covariance_type, bic_val = fit_gmm_with_fallback(
+            X_tensor,
+            target_n_components=target_n_components,
+            n_iter=100,
         )
-        best_model.fit(X_tensor, n_iter=100)
-
-        bic_val = float(best_model.bic(X_tensor))
         bic_scores = {best_n: bic_val}
 
-        print(f"BIC {descriptor_name}: k={best_n}: {bic_val:.1f}")
+        print(f"BIC {descriptor_name}: k={best_n}, covariance={covariance_type}: {bic_val:.1f}")
         print(
             f"Paramètres {descriptor_name}: n_components={best_n}, "
             f"dims={X_cluster.shape[1]} (PCA={pca_dims})"
@@ -215,6 +249,7 @@ def pipeline():
             name_model="gmm",
         )
         metric["n_components"] = best_n
+        metric["covariance_type"] = covariance_type
         metric["n_clusters"] = n_clusters
         metric["bic_scores"] = str(bic_scores)
         metrics_list.append(metric)
