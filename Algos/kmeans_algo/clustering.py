@@ -142,6 +142,7 @@ def show_metric(labels_true, labels_pred, descriptors,bool_return=False,name_des
     jaccard = metrics.jaccard_score(labels_true, labels_pred, average='macro')
     ami = metrics.adjusted_mutual_info_score(labels_true, labels_pred)
     silhouette = silhouette_score(descriptors, labels_pred)
+    dbi = metrics.davies_bouldin_score(descriptors, labels_pred)
     ari = adjusted_rand_score(labels_true, labels_pred)
     # Affichons les résultats
     if bool_show :
@@ -152,11 +153,13 @@ def show_metric(labels_true, labels_pred, descriptors,bool_return=False,name_des
         print(f"Completeness: {completeness}")
         print(f"V-measure: {v_measure}")
         print(f"Silhouette Score: {silhouette}")
+        print(f"Davies-Bouldin Index: {dbi}")
         print(f"Adjusted Mutual Information: {ami}")
     if bool_return:
         return {"ami":ami,
                 "ari":ari, 
                 "silhouette":silhouette,
+            "dbi":dbi,
                 "homogeneity":homogeneity,
                 "completeness":completeness,
                 "v_measure":v_measure, 
