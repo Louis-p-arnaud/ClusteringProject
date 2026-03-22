@@ -7,6 +7,67 @@ from skimage import transform, color
 import itertools
 
 
+def compute_vit_descriptors(images,
+                            model_name='vit_tiny_patch16_224',
+                            batch_size=32,
+                            device=None):
+    """
+    Calcule les descripteurs Vision Transformer (ViT) pour les images.
+    Input : images (array) : tableau numpy des images (BGR ou RGB)
+    Output : descriptors (np.array) : matrice des descripteurs ViT (N, D)
+    """
+    try:
+        import torch
+        import timm
+        from PIL import Image
+        from torchvision import transforms
+    except ImportError as exc:
+        raise ImportError(
+            "ViT nécessite les packages 'torch', 'timm', 'Pillow' et 'torchvision'. "
+            "Installe-les puis relance le pipeline."
+        ) from exc
+
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    model = timm.create_model(model_name, pretrained=True, num_classes=0)
+    model.to(device)
+    model.eval()
+
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+    descriptors = []
+    images = np.array(images)
+
+    for start_idx in range(0, len(images), batch_size):
+        batch = images[start_idx:start_idx + batch_size]
+        batch_tensors = []
+
+        for img in batch:
+            if len(img.shape) == 3 and img.shape[2] == 3:
+                rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            else:
+                rgb_img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+
+            pil_img = Image.fromarray(rgb_img)
+            batch_tensors.append(transform(pil_img))
+
+        batch_tensors = torch.stack(batch_tensors).to(device)
+
+        with torch.no_grad():
+            features = model(batch_tensors)
+            norm = features.norm(p=2, dim=-1, keepdim=True).clamp_min(1e-12)
+            features = features / norm
+
+        descriptors.append(features.cpu().numpy())
+
+    return np.vstack(descriptors).astype(np.float32)
+
+
 def compute_clip_descriptors(images,
                              model_name="openai/clip-vit-base-patch32",
                              batch_size=32,
