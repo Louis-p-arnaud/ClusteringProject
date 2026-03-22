@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 from PIL import Image
 
-from constant import PATH_OUTPUT
+from constant import PATH_ALGO
 
 
 @st.cache_data
@@ -35,15 +35,27 @@ def load_excel_if_exists(file_path):
     return None
 
 
-# Chargement des données du clustering
-df_hist = pd.read_excel(os.path.join(PATH_OUTPUT, "save_clustering_hist_kmeans.xlsx"))
-df_hog = pd.read_excel(os.path.join(PATH_OUTPUT,"save_clustering_hog_kmeans.xlsx"))
-df_resnet = pd.read_excel(os.path.join(PATH_OUTPUT,"save_clustering_resnet_kmeans.xlsx"))
-df_metric = pd.read_excel(os.path.join(PATH_OUTPUT,"save_metric.xlsx"))
-df_clip = load_excel_if_exists(os.path.join(PATH_OUTPUT, "save_clustering_clip_kmeans.xlsx"))
+# Sélection de l'algorithme (en haut de la sidebar)
+st.sidebar.write("## Configuration du clustering")
+algorithm = st.sidebar.selectbox('Algorithme de clustering', ["kmeans", "dbscan"])
+
+# Chargement dynamique des données selon l'algorithme
+if algorithm == "kmeans":
+    PATH_OUTPUT = os.path.join(PATH_ALGO, "kmeans_algo", "output")
+elif algorithm == "dbscan":
+    PATH_OUTPUT = os.path.join(PATH_ALGO, "dbscan_algo", "output")
+else:
+    st.error("Algorithme non reconnu.")
+    st.stop()
+
+df_hist = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_hist_{algorithm}.xlsx"))
+df_hog = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_hog_{algorithm}.xlsx"))
+df_resnet = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_resnet_{algorithm}.xlsx"))
+df_clip = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_clip_{algorithm}.xlsx"))
+df_metric = load_excel_if_exists(os.path.join(PATH_OUTPUT, "save_metric.xlsx"))
 
 if df_metric is None:
-    st.error("Fichier métriques introuvable. Relance `pipeline.py` pour générer les exports.")
+    st.error(f"Fichiers {algorithm.upper()} introuvables. Relance `pipeline_{algorithm}.py` pour générer les exports.")
     st.stop()
 
 if 'Unnamed: 0' in df_metric.columns:
@@ -55,7 +67,7 @@ tab1, tab2 = st.tabs(["Analyse par descripteur", "Analyse global" ])
 # Onglet numéro 1
 with tab1:
 
-    st.write('## Résultat de Clustering des données de snacks')
+    st.write(f'## Résultat de Clustering - {algorithm.upper()}')
     st.sidebar.write("####  Veuillez sélectionner les clusters à analyser" )
     # Sélection des descripteurs
     available_descriptors = []
@@ -70,7 +82,7 @@ with tab1:
 
 
     if len(available_descriptors) == 0:
-        st.error("Aucun fichier clustering trouvé. Relance `pipeline.py`.")
+        st.error(f"Aucun fichier clustering {algorithm.upper()} trouvé. Relance `pipeline_{algorithm}.py`.")
         st.stop()
 
     descriptor = st.sidebar.selectbox('Sélectionner un descripteur', available_descriptors)
@@ -84,13 +96,26 @@ with tab1:
         df = df_resnet
 
     # Nb de clusters
-    num_clusters = df['cluster'].max() + 1
-    selected_cluster =  st.sidebar.selectbox('Sélectionner un Cluster', range(int(num_clusters)))
+    unique_clusters = sorted(df['cluster'].unique())
+    # Filtrer les clusters de bruit (-1) si DBSCAN
+    if algorithm == "dbscan" and -1 in unique_clusters:
+        cluster_options = [c for c in unique_clusters if c != -1]
+        show_noise = st.sidebar.checkbox("Afficher les points de bruit (-1)", value=False)
+        if show_noise:
+            cluster_options = unique_clusters
+    else:
+        cluster_options = unique_clusters
+    
+    if len(cluster_options) == 0:
+        st.warning("Aucun cluster valide trouvé.")
+        st.stop()
+    
+    selected_cluster = st.sidebar.selectbox('Sélectionner un Cluster', cluster_options)
     # Filtrer les données en fonction du cluster sélectionné
     cluster_indices = df[df.cluster==selected_cluster].index    
     st.write(f"###  Analyse du descripteur {descriptor}" )
-    st.write(f"#### Analyse du cluster : {selected_cluster}")
-    st.write(f"####  Visualisation 3D du clustering avec descripteur {descriptor}" )
+    st.write(f"#### Analyse du cluster : {selected_cluster} ({'Bruit' if selected_cluster == -1 else 'Cluster valide'})")
+    st.write(f"####  Visualisation 3D - {algorithm.upper()} avec {descriptor}" )
     # Sélection du cluster choisi
     filtered_data = df[df['cluster'] == selected_cluster]
     # Création d'un graph 3D des clusters
