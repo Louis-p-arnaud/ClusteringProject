@@ -28,16 +28,12 @@ def copy_outputs(source_output: Path, algo_key: str, output_root: Path) -> None:
     output_root.mkdir(parents=True, exist_ok=True)
 
     for xlsx_file in source_output.glob("*.xlsx"):
-        # Copy into root output folder with collision-safe naming
-        if xlsx_file.name == "save_metric.xlsx":
-            root_name = f"save_metric_{algo_key}.xlsx"
-        else:
-            root_name = xlsx_file.name
+        # On renomme TOUS les fichiers en ajoutant _algo_key à la fin
+        root_name = f"{xlsx_file.stem}_{algo_key}.xlsx"
 
         root_file = output_root / root_name
         if xlsx_file.resolve() != root_file.resolve():
             shutil.copy2(xlsx_file, root_file)
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run all IA clustering pipelines and consolidate outputs.")

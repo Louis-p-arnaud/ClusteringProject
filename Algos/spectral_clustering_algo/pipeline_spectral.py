@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from Algos.spectral_clustering_algo.spectral_clustering import Spectral
+from Algos.spectral_clustering_algo.spectral_clustering_from_scratch import SpectralClustering
 from Algos.kmeans_algo.clustering import show_metric
 from Descriptors.ResNet50 import compute_resnet_descriptors
 from Descriptors.features import compute_hog_descriptors, compute_color_histograms, compute_clip_descriptors, compute_vit_descriptors
@@ -89,15 +89,14 @@ def pipeline():
     metrics_list = []
 
     for descriptor_name, descriptor_values in descriptor_map.items():
-        spectral_model = Spectral(
+        spectral_model = SpectralClustering(
             n_clusters=number_cluster,
-            affinity='nearest_neighbors',
-            assign_labels='kmeans',
+            n_neighbors=10,
             random_state=42,
         )
 
         print(f"- calcul spectral clustering avec features {descriptor_name} (sans supervision)...")
-        spectral_model.fit(descriptor_values)
+        spectral_model.fit_predict(descriptor_values)
         labels_by_descriptor[descriptor_name] = spectral_model.labels_
 
         metric = show_metric(
