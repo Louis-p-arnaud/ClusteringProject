@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import streamlit as st
 import pandas as pd
@@ -9,11 +10,16 @@ from PIL import Image
 
 import argparse
 
+PROJECT_DIR = Path(__file__).resolve().parent
+DEFAULT_ANALYSIS_PATH = PROJECT_DIR / "outputs"
+if not DEFAULT_ANALYSIS_PATH.exists():
+    DEFAULT_ANALYSIS_PATH = PROJECT_DIR / "Algos"
+
 parser = argparse.ArgumentParser()
-parser.add_argument('-path_data', type=str, default='.')
+parser.add_argument('-path_data', '--path_data', type=str, default=str(DEFAULT_ANALYSIS_PATH))
 args, _ = parser.parse_known_args()
 
-PATH_ALGO = args.path_data
+PATH_ALGO = os.path.abspath(args.path_data)
 
 @st.cache_data
 def colorize_cluster(cluster_data, selected_cluster):
@@ -92,17 +98,51 @@ def load_excel_if_exists(file_path):
     return None
 
 
+def load_algo_output_file(path_output, path_root, basename, algorithm):
+    candidates = [
+        os.path.join(path_output, f"{basename}_{algorithm}.xlsx"),
+        os.path.join(path_root, f"{basename}_{algorithm}.xlsx"),
+    ]
+    for candidate in candidates:
+        df = load_excel_if_exists(candidate)
+        if df is not None:
+            return df
+    return None
+
+
+def load_metric_file(path_output, path_root, algorithm):
+    candidates = [
+        os.path.join(path_output, "save_metric.xlsx"),
+        os.path.join(path_root, f"save_metric_{algorithm}.xlsx"),
+    ]
+    for candidate in candidates:
+        df = load_excel_if_exists(candidate)
+        if df is not None:
+            return df
+    return None
+
+
 def load_recap_metrics(path_algo):
     recap_rows = []
     algo_to_output = {
-        "kmeans": os.path.join(path_algo, "kmeans_algo", "output", "save_metric.xlsx"),
-        "dbscan": os.path.join(path_algo, "dbscan_algo", "output", "save_metric.xlsx"),
-        "spectral": os.path.join(path_algo, "spectral_clustering_algo", "output", "save_metric.xlsx"),
-        "gmm": os.path.join(path_algo, "GMM_algo", "output", "save_metric.xlsx"),
+        "kmeans": "kmeans_algo",
+        "dbscan": "dbscan_algo",
+        "spectral": "spectral_clustering_algo",
+        "gmm": "GMM_algo",
     }
 
-    for model_name, metric_path in algo_to_output.items():
-        df_model = load_excel_if_exists(metric_path)
+    for model_name, algo_folder in algo_to_output.items():
+        metric_candidates = [
+            os.path.join(path_algo, algo_folder, "output", "save_metric.xlsx"),
+            os.path.join(path_algo, f"save_metric_{model_name}.xlsx"),
+        ]
+
+        df_model = None
+        for metric_path in metric_candidates:
+            df_model = load_excel_if_exists(metric_path)
+            if df_model is not None:
+                break
+
         if df_model is None or len(df_model) == 0:
             continue
 
@@ -147,15 +187,17 @@ else:
     st.error("Algorithme non reconnu.")
     st.stop()
 
-df_hist = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_hist_{algorithm}.xlsx"))
-df_hog = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_hog_{algorithm}.xlsx"))
-df_resnet = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_resnet_{algorithm}.xlsx"))
-df_clip = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_clip_{algorithm}.xlsx"))
-df_vit = load_excel_if_exists(os.path.join(PATH_OUTPUT, f"save_clustering_vit_{algorithm}.xlsx"))
-df_metric = load_excel_if_exists(os.path.join(PATH_OUTPUT, "save_metric.xlsx"))
+df_hist = load_algo_output_file(PATH_OUTPUT, PATH_ALGO, "save_clustering_hist", algorithm)
+df_hog = load_algo_output_file(PATH_OUTPUT, PATH_ALGO, "save_clustering_hog", algorithm)
+df_resnet = load_algo_output_file(PATH_OUTPUT, PATH_ALGO, "save_clustering_resnet", algorithm)
+df_clip = load_algo_output_file(PATH_OUTPUT, PATH_ALGO, "save_clustering_clip", algorithm)
+df_vit = load_algo_output_file(PATH_OUTPUT, PATH_ALGO, "save_clustering_vit", algorithm)
+df_metric = load_metric_file(PATH_OUTPUT, PATH_ALGO, algorithm)
 df_silhouette_curve = None
 if algorithm == "kmeans":
     df_silhouette_curve = load_excel_if_exists(os.path.join(PATH_OUTPUT, "save_silhouette_curve_kmeans.xlsx"))
+    if df_silhouette_curve is None:
+        df_silhouette_curve = load_excel_if_exists(os.path.join(PATH_ALGO, "save_silhouette_curve_kmeans.xlsx"))
 
 if df_metric is None:
     st.error(f"Fichiers {algorithm.upper()} introuvables. Relance `pipeline_{algorithm}.py` pour générer les exports.")
@@ -239,22 +281,25 @@ with tab1:
             cols = st.columns(num_cols)
             for i, img_path in enumerate(image_paths):
                 col = cols[i % num_cols]
-                
-                img_path_str = str(img_path)
-                if "dataset" in img_path_str:
-                    chemin_relatif = img_path_str[img_path_str.find("dataset"):]
-                else:
-                    chemin_relatif = img_path_str
-                    
-                chemin_propre = chemin_relatif.replace("\\", "/")
 
-                if os.path.exists(chemin_propre):
+                img_path_str = str(img_path)
+                candidate_paths = [os.path.normpath(img_path_str)]
+                if not os.path.isabs(img_path_str):
+                    candidate_paths.append(os.path.normpath(os.path.join(str(PROJECT_DIR), img_path_str)))
+
+                existing_path = None
+                for candidate in candidate_paths:
+                    if os.path.exists(candidate):
+                        existing_path = candidate
+                        break
+
+                if existing_path is not None:
                     with col:
-                        img = Image.open(chemin_propre)
-                        st.image(img, caption=os.path.basename(chemin_propre), use_column_width=True)
+                        img = Image.open(existing_path)
+                        st.image(img, caption=os.path.basename(existing_path), use_column_width=True)
                 else:
                     with col:
-                        st.warning(f"Image introuvable: {os.path.basename(chemin_propre)}")
+                        st.warning(f"Image introuvable: {os.path.basename(img_path_str)}")
     else:
         st.warning("La colonne 'image_path' est absente. Relance `pipeline.py` pour régénérer les fichiers exportés.")
 
