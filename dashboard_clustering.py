@@ -282,7 +282,14 @@ with tab1:
             for i, img_path in enumerate(image_paths):
                 col = cols[i % num_cols]
 
-                img_path_str = str(img_path)
+                # On remplace les antislashs Windows par des slashs universels
+                img_path_str = str(img_path).replace("\\", "/")
+                
+                if "data/" in img_path_str:
+                    idx = img_path_str.find("data/") + 5 
+                    chemin_nettoye = img_path_str[idx:].lstrip("/")
+                    img_path_str = os.path.join(str(PROJECT_DIR), "data", chemin_nettoye)
+
                 candidate_paths = [os.path.normpath(img_path_str)]
                 if not os.path.isabs(img_path_str):
                     candidate_paths.append(os.path.normpath(os.path.join(str(PROJECT_DIR), img_path_str)))
