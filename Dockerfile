@@ -7,4 +7,4 @@ RUN pip install -r requierements.txt
 COPY . .
 EXPOSE 8501
 
-CMD ["streamlit", "run", "dashboard_clustering.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "dashboard_clustering.py", "--server.port=8501", "--server.address=0.0.0.0", "--", "-path_data", "./Algos"]

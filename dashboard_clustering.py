@@ -7,8 +7,13 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 from PIL import Image
 
-from constant import PATH_ALGO
+import argparse
 
+parser = argparse.ArgumentParser()
+parser.add_argument('-path_data', type=str, default='.')
+args, _ = parser.parse_known_args()
+
+PATH_ALGO = args.path_data
 
 @st.cache_data
 def colorize_cluster(cluster_data, selected_cluster):
