@@ -145,7 +145,7 @@ def show_metric(labels_true, labels_pred, descriptors, bool_return=False, name_d
         print(f"########## Métrique descripteur : {name_descriptor} - ÉCHEC (moins de 2 clusters)")
         if bool_return:
             return {
-                "ami": 0.0, "ari": 0.0, "silhouette": 0.0,
+                "ami": 0.0, "ari": 0.0, "silhouette": 0.0, "dbi": 0.0,
                 "homogeneity": 0.0, "completeness": 0.0, "v_measure": 0.0,
                 "jaccard": 0.0, "descriptor": name_descriptor, "name_model": name_model
             }
@@ -157,6 +157,7 @@ def show_metric(labels_true, labels_pred, descriptors, bool_return=False, name_d
     
     # Silhouette seulement sur les points non-bruit
     silhouette = silhouette_score(descriptors_filtered, labels_pred_filtered) if len(labels_pred_filtered) > 1 else 0.0
+    dbi = metrics.davies_bouldin_score(descriptors_filtered, labels_pred_filtered) if len(labels_pred_filtered) > 1 else 0.0
     ari = adjusted_rand_score(labels_true, labels_pred)
     
     # Affichons les résultats
@@ -168,6 +169,7 @@ def show_metric(labels_true, labels_pred, descriptors, bool_return=False, name_d
         print(f"Completeness: {completeness}")
         print(f"V-measure: {v_measure}")
         print(f"Silhouette Score: {silhouette}")
+        print(f"Davies-Bouldin Index: {dbi}")
         print(f"Adjusted Mutual Information: {ami}")
         print(f"Nombre de clusters trouvés: {n_clusters}")
         print(f"Points de bruit: {np.sum(labels_pred == -1)}")
@@ -177,6 +179,7 @@ def show_metric(labels_true, labels_pred, descriptors, bool_return=False, name_d
             "ami": ami,
             "ari": ari,
             "silhouette": silhouette,
+            "dbi": dbi,
             "homogeneity": homogeneity,
             "completeness": completeness,
             "v_measure": v_measure,
