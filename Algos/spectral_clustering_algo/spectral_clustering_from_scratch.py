@@ -1,6 +1,8 @@
 import numpy as np
-from scipy.spatial.distance import cdist
 from scipy.linalg import eigh
+from sklearn.datasets import make_moons
+import matplotlib.pyplot as plt
+from scipy.spatial.distance import cdist
 # Tu peux remplacer cet import par ta propre classe KMeans si tu l'as créée
 from sklearn.cluster import KMeans 
 
@@ -24,7 +26,7 @@ class SpectralCustom:
         self.n_clusters = n_clusters
         self.n_neighbors = n_neighbors
         self.random_state = random_state
-        pass
+        self.labels = None
 
     def _construire_matrice_adjacence(self, X):
         """
@@ -36,12 +38,27 @@ class SpectralCustom:
         Output :
         - W : (np.ndarray) matrice d'adjacence symétrique de taille (nombre_images, nombre_images).
         """
-        # TODO : 1. Calculer les distances entre toutes les paires de points dans X (utiliser cdist).
-        # TODO : 2. Pour chaque point, trouver les indices de ses 'n_neighbors' plus proches voisins.
-        # TODO : 3. Créer une matrice W remplie de 0.
-        # TODO : 4. Placer des 1 dans W pour chaque lien voisin trouvé.
-        # TODO : 5. Rendre la matrice W symétrique (si A est voisin de B, B est voisin de A) et retourner W.
-        pass
+
+        #calcule des distances euclidiennes entre toutes les paires de points dans X
+        distances = cdist(X,X)
+
+        #calcul des indices des n_neighbors plus proches voisins
+        #axis=1 permet de trier ligne par ligne.
+        #on prend [:, 1:self.n_neighbors + 1] pour exclure la 1ère colonne (le point lui-même, dont la distance est 0).
+        indices_voisins = np.argsort(distances, axis=1)[:, 1:self.n_neighbors + 1]
+
+        #initialisation de la matrice d'adjacence avec une matrice de taille nombre_image*nombre_image
+        W = np.zeros((X.shape[0],X.shape[0]))
+
+        #on assigne 1 aux indices correspondants aux n_neighbors voisins pour chaques points
+        for i in range (X.shape[0]):
+            # On parcourt directement les voisins du point i
+            for j in indices_voisins[i]:
+                W[i, j] = 1
+                W[j, i] = 1  # Règle de symétrie obligatoire pour le Laplacien
+        
+        return W
+
 
     def _calculer_laplacien(self, W):
         """
@@ -53,10 +70,18 @@ class SpectralCustom:
         Output :
         - L : (np.ndarray) matrice Laplacienne de taille (nombre_images, nombre_images).
         """
-        # TODO : 1. Calculer le degré de chaque nœud (somme de chaque ligne de W).
-        # TODO : 2. Créer la matrice diagonale D avec ces degrés (utiliser np.diag).
-        # TODO : 3. Calculer L = D - W et retourner L.
-        pass
+
+        #le degres correspond à la somme de chaque ligne de W
+        #axis = 1 afin d'additionner uniquement les lignes
+        degres = np.sum(W, axis=1)
+
+        # creation de la matrice diagonale D avec les degrés
+        D = np.diag(degres)        
+        #calcul du laplacien
+        L = D - W
+
+        return L
+
 
     def _extraire_vecteurs_propres(self, L):
         """
@@ -68,11 +93,19 @@ class SpectralCustom:
         Output :
         - vecteurs : (np.ndarray) matrice de taille (nombre_images, n_clusters) contenant les vecteurs propres.
         """
-        # TODO : 1. Calculer les valeurs propres et vecteurs propres de L (utiliser eigh de scipy).
-        # TODO : 2. Trier les valeurs propres par ordre croissant pour obtenir les indices de tri.
-        # TODO : 3. Trier les vecteurs propres en utilisant ces mêmes indices.
-        # TODO : 4. Sélectionner et retourner uniquement les 'n_clusters' premiers vecteurs propres.
-        pass
+        # calcul des valeurs et vecteurs propres de L
+        valeurs_propres, vecteurs_propres = eigh(L)
+
+        #récupération des indices pour trier du plus petit au plus grand
+        indices_tri = np.argsort(valeurs_propres)
+
+        #réorganisation des colonnes des vecteurs propres pour suivre cet ordre
+        vecteurs_tries = vecteurs_propres[:, indices_tri]
+
+        #découpage de la matrice pour ne garder que les 'n_clusters' premières colonnes
+        vecteurs_finaux = vecteurs_tries[:, :self.n_clusters]
+
+        return vecteurs_finaux
 
     def fit_predict(self, X):
         """
@@ -84,9 +117,20 @@ class SpectralCustom:
         Output :
         - labels : (np.ndarray) tableau 1D contenant le numéro du cluster pour chaque image.
         """
-        # TODO : 1. W = self._construire_matrice_adjacence(X)
-        # TODO : 2. L = self._calculer_laplacien(W)
-        # TODO : 3. vecteurs_propres = self._extraire_vecteurs_propres(L)
-        # TODO : 4. Instancier KMeans avec self.n_clusters et self.random_state.
-        # TODO : 5. Entraîner le KMeans sur 'vecteurs_propres' et retourner les labels obtenus.
-        pass
+        # construction de la matrice d'adjacence
+        W = self._construire_matrice_adjacence(X)
+
+        # calcul du Laplacien
+        L = self._calculer_laplacien(W)
+
+        #extraction des vecteurs propres k premiers vecteurs propres associés aux k plus petites valeurs propres
+        vecteurs_propres = self._extraire_vecteurs_propres(L)
+
+        # instanciation de KMeans
+        kmeans = KMeans(n_clusters=self.n_clusters, random_state=self.random_state)
+
+        # entraînement sur le nouvel espace spectral (nos vecteurs propres tries) et récupération des labels
+        self.labels_ = kmeans.fit_predict(vecteurs_propres)
+
+
+        return self.labels_
