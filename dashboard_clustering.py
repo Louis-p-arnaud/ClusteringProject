@@ -234,14 +234,22 @@ with tab1:
             cols = st.columns(num_cols)
             for i, img_path in enumerate(image_paths):
                 col = cols[i % num_cols]
-                img_path = os.path.normpath(str(img_path))
-                if os.path.exists(img_path):
+                
+                img_path_str = str(img_path)
+                if "dataset" in img_path_str:
+                    chemin_relatif = img_path_str[img_path_str.find("dataset"):]
+                else:
+                    chemin_relatif = img_path_str
+                    
+                chemin_propre = chemin_relatif.replace("\\", "/")
+
+                if os.path.exists(chemin_propre):
                     with col:
-                        img = Image.open(img_path)
-                        st.image(img, caption=os.path.basename(img_path), use_column_width=True)
+                        img = Image.open(chemin_propre)
+                        st.image(img, caption=os.path.basename(chemin_propre), use_column_width=True)
                 else:
                     with col:
-                        st.warning(f"Image introuvable: {os.path.basename(img_path)}")
+                        st.warning(f"Image introuvable: {os.path.basename(chemin_propre)}")
     else:
         st.warning("La colonne 'image_path' est absente. Relance `pipeline.py` pour régénérer les fichiers exportés.")
 
