@@ -3,7 +3,6 @@ from scipy.linalg import eigh
 from sklearn.datasets import make_moons
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import cdist
-# Tu peux remplacer cet import par ta propre classe KMeans si tu l'as créée
 from sklearn.cluster import KMeans 
 
 class SpectralClustering:

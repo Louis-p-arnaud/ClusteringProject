@@ -16,6 +16,8 @@ def compute_vit_descriptors(images,
     Input : images (array) : tableau numpy des images (BGR ou RGB)
     Output : descriptors (np.array) : matrice des descripteurs ViT (N, D)
     """
+    
+    # try/except évite de faire planter tout le pipeline si une librairie manque sur une machine
     try:
         import torch
         import timm
@@ -27,46 +29,69 @@ def compute_vit_descriptors(images,
             "Installe-les puis relance le pipeline."
         ) from exc
 
+    
+    #permet d'utiliser CUDA si dispo, sinon on bascule sur notre processeur (CPU)
+    #on prefere utiliser CUDA car Calcul en Parallèle > Calcul Séquentiel
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
+    # chargement du modèle ViT
+    # on obtient directement le vecteur de caractéristiques (le descripteur) au lieu d'une prédiction
     model = timm.create_model(model_name, pretrained=True, num_classes=0)
     model.to(device)
-    model.eval()
+    model.eval() # le modele passe en mode evaluation (et n'est plus en mode entrainement ducoup) => resultat verrouille
 
+    # phase de preprocessing
     transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
+        transforms.Resize((224, 224)), # Le ViT n'accepte que des images de 224 pixels de cotes
+        transforms.ToTensor(),         # Conversion au format Tensor PyTorch (les valeurs sont ramenes entre 0 et 1)
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
     descriptors = []
     images = np.array(images)
 
+    # traitement par lots (batching)
+    # On découpe les images par petits groupes (batch_size=32) pour ne pas saturer la RAM
     for start_idx in range(0, len(images), batch_size):
         batch = images[start_idx:start_idx + batch_size]
         batch_tensors = []
 
+        # Gestion robuste des canaux de couleurs
+        # On s'assure de toujours envoyer du RGB au modèle, peu importe le format d'origine.
         for img in batch:
-            if len(img.shape) == 3 and img.shape[2] == 3:
-                rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            else:
+            if len(img.shape) == 2: # Image en noir et blanc (1 canal)
                 rgb_img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+            elif len(img.shape) == 3 and img.shape[2] == 3: # Image couleur standard OpenCV (BGR)
+                rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            elif len(img.shape) == 3 and img.shape[2] == 4: # Image avec transparence (RGBA)
+                rgb_img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
+            else:
+                rgb_img = img # Fallback
 
             pil_img = Image.fromarray(rgb_img)
             batch_tensors.append(transform(pil_img))
 
+        # Envoi du batch préparé vers CUDA/CPU
         batch_tensors = torch.stack(batch_tensors).to(device)
 
+        # Inférence et Normalisation
+        # torch.no_grad() coupe le calcul des gradients, économisant énormément de mémoire et de temps
+        # le mot cle with avec torch.no_grad permet donc de forcer PyTorch à ne pas calculer de gradients pendant l'extraction (opti pour la consommation de RAM)
         with torch.no_grad():
-            features = model(batch_tensors)
+            features = model(batch_tensors) # Extraction du vecteur par le ViT
+            
+            # Normalisation L2 : on divise le vecteur par sa norme.
+            # Très important pour K-Means/Spectral car cela transforme les distances en similarités d'angles.
             norm = features.norm(p=2, dim=-1, keepdim=True).clamp_min(1e-12)
             features = features / norm
 
+        # On ramène les descripteurs sur le processeur (CPU) pour les stocker
         descriptors.append(features.cpu().numpy())
 
+    # Assemblage final
+    # On fusionne tous les sous-tableaux en une seule grande matrice (N images, D dimensions)
     return np.vstack(descriptors).astype(np.float32)
-
 
 def compute_clip_descriptors(images,
                              model_name="openai/clip-vit-base-patch32",
